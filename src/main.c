@@ -31,7 +31,7 @@ void print_triangle(int** matrix, int n, int* var, int size) {
 
     int row_index = 0, col_index = 0;
     for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
-        for (int j = var[col_index]; j <= i; col_index++, j = var[col_index]) {
+        for (int j = var[col_index]; j <= i && col_index < size; col_index++, j = var[col_index]) {
             printf("%d ", matrix[i - 1][j - 1]);
         }
         printf("\n");
@@ -41,13 +41,13 @@ void print_triangle(int** matrix, int n, int* var, int size) {
 
 int get_sum(int** matrix, int n, int* var, int size) {
 
-    //print_triangle(matrix, n, var, size);
+    print_triangle(matrix, n, var, size);
 
     int sum = 0;
 
     int row_index = 0, col_index = 0;
     for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
-        for (int j = var[col_index]; j <= i; col_index++, j = var[col_index]) {
+        for (int j = var[col_index]; j <= i && col_index < size; col_index++, j = var[col_index]) {
             sum += matrix[i - 1][j - 1];
         }
     }
@@ -66,8 +66,8 @@ int _variate(int** matrix, int n, int* var, int size, int min, int max, int deep
         else {
             printf("indexes: ");
             print(var, size);
-            //int sum = get_sum(matrix, n, var, size);
-            //printf("sum: %d\n", sum);
+            int sum = get_sum(matrix, n, var, size);
+            printf("sum: %d\n", sum);
             //if (sum < min_sum) {
             //    printf("Less!\n");
             //    min_sum = sum;
