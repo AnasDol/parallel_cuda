@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     fclose(file);
 
     char log[255];
-    strncpy(log, argv[1], 255);
+    strncpy(log, argv[2], 255);
 
     FILE* logfile = fopen(log, "w+");
     if (!logfile) {
@@ -177,7 +177,7 @@ void save_log(FILE* logfile, int** matrix, int n, int* var, int size, int sum, i
         for (int i = 0; i < size; i++) {
             fprintf(logfile, "%d ", var[i]);
         }
-        fprintf(logfile, "]\nsubmatrix:");
+        fprintf(logfile, "]\nsubmatrix:\n");
         int row_index = 0, col_index = 0;
         for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
             for (int j = var[col_index]; j <= i && col_index < size; col_index++, j = var[col_index]) {
