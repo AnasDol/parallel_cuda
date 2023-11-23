@@ -55,28 +55,27 @@ int get_sum(int** matrix, int n, int* var, int size) {
 
 }
 
-int _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var) {
-    int min_sum = INT_MAX;
+void _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum) {
+
     for (int i = min; i <= max - size + 1; i++) {
         if (deep < size) {
             var[deep] = i;
-            _variate(matrix, n, var, size, i + 1, max + 1, deep + 1, result_var);
-            
+            _variate(matrix, n, var, size, i + 1, max + 1, deep + 1, result_var, min_sum);
+
         }
         else {
             printf("indexes: ");
             print(var, size);
             int sum = get_sum(matrix, n, var, size);
             printf("sum: %d\n", sum);
-            //if (sum < min_sum) {
-            //    printf("Less!\n");
-            //    min_sum = sum;
-            //    for (int j = 0; j < size; j++) result_var[j] = var[j];
-            //}
+            if (sum < *min_sum) {
+                printf("Less!\n");
+                *min_sum = sum;
+                for (int j = 0; j < size; j++) result_var[j] = var[j];
+            }
             break;
         }
     }
-    return min_sum;
 }
 
 int main() {
@@ -95,16 +94,17 @@ int main() {
 
     print_matrix(matrix, n);
 
+    int min_sum = INT_MAX;
     int var[SIZE];
     int result_var[SIZE];
     init(var, SIZE);
-    int min_sum = _variate(matrix, n, var, SIZE, 1, 8, 0, result_var);
+    _variate(matrix, n, var, SIZE, 1, 8, 0, result_var, &min_sum);
 
-    //printf("\n---------------Output----------------\n");
-    //printf("indexes:\n");
-    //print(result_var, SIZE);
-    //printf("matrix:\n");
-    //print_triangle(matrix, n, result_var, SIZE);
-    //printf("min_sum: %d\n", min_sum);
+    printf("\n---------------Output----------------\n");
+    printf("indexes:\n");
+    print(result_var, SIZE);
+    printf("matrix:\n");
+    print_triangle(matrix, n, result_var, SIZE);
+    printf("min_sum: %d\n", min_sum);
 
 }
