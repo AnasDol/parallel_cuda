@@ -9,7 +9,9 @@ void print_matrix(int** matrix, int n);
 void print_triangle(int** matrix, int n, int* var, int size);
 
 int get_sum(int** matrix, int n, int* var, int size);
-void _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum);
+void _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile);
+
+void save_log(FILE* logfile, int** matrix, int n, int* var, int size, int sum, int min_sum);
 
 int main(int argc, char* argv[]) {
 
@@ -40,106 +42,71 @@ int main(int argc, char* argv[]) {
         matrix[i] = (int*)malloc(n * sizeof(int));
     }
 
-    // int a;
-    // fread(&a, sizeof(int), 1, file);
-    // printf("a = %d", a);
-
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             fread(&matrix[i][j], sizeof(int), 1, file);
         }
     }
 
-    
-
-    print_matrix(matrix, n);
-
-    // char log[255];
-    // strncpy(log, argv[1], 255);
-
-    // FILE* logfile = fopen(log, "w+");
-    // if (!logfile) {
-    //     printf("Log file not found\n");
-    //     return 0;
-    // }
-
-    // printf("Row number (>=2): ");
-    // int m; // размер области по вертикали
-    // if (!(scanf("%d", &m)==1 && m>=2)) {
-    //     printf("Input error\n");
-    //     return 0;
-    // }
-
-    // printf("Column number (>=2): ");
-    // int n; // размер области по горизонтали
-    // if (!(scanf("%d", &n)==1 && n>=2)) {
-    //     printf("Input error\n");
-    //     return 0;
-    // }
-
-    // printf("Cut radius (1<R<%.2lf): ", (double)min(m,n)/2);
-    // double R; // радиус круглого выреза
-    // if (!(scanf("%lf", &R)==1 && R>=1 && R<=(double)min(m,n)/2)) {
-    //     printf("Input error\n");
-    //     return 0;
-    // }
-
-    // double** temperature = (double**)malloc(m * sizeof(double*));
-    // for (int i = 0; i < m; i++) {
-    //     temperature[i] = (double*)malloc(n * sizeof(double));
-    // }
-
-    // initialize(temperature, m, n, R);
-
-    // if (m <= 30 && n <= 15) {
-    //     printf("Initial state:\n");
-    //     for (int i = 0; i < m; i++) {
-    //         for (int j = 0; j < n; j++) {
-    //             printf("%7.3lf ", temperature[i][j]);
-    //         }
-    //         printf("\n");
-    //     }
-    // }
-
-    // double start = omp_get_wtime();
-
-    // int count = compute_temperature(temperature, m, n, R, logfile);
-
-    // double finish = omp_get_wtime();
-
-    // printf("\nOutput:\n");
-    // for (int i = 0; i < n; i++) {
-    //     printf("%.3lf\t", temperature[0][i]);
-    // }
-    // printf("\nIntermediate results is saved in the log file.\n", count);
-    // printf("Time: %lf\n", finish - start);
-    // printf("Count: %d\n", count);
-
-    // // Вывод распределения температур
-    // // for (int i = 0; i < m; i++) {
-    // //     for (int j = 0; j < n; j++) {
-    // //         if (pow(i-round((double)(m/2-1)), 2) + pow(j-round((double)(n/2)), 2) <= R*R) printf("   \t");
-    // //         else printf("%.2f\t", temperature[i][j]);
-    // //     }
-    // //     printf("\n");
-    // // }
-
-
-    // for (int i = 0;i<m;i++) {
-    //     free(temperature[i]);
-    // }
-    // free(temperature);
-
-    //fclose(logfile);
     fclose(file);
+
+    char log[255];
+    strncpy(log, argv[1], 255);
+
+    FILE* logfile = fopen(log, "w+");
+    if (!logfile) {
+        printf("Log file not found\n");
+        return 0;
+    }
+
+    if (n <= 20) print_matrix(matrix, n);
+
+    printf("Matrix size (1-%d): ", n);
+    int size;
+    if (!(scanf("%d", &size)==1 && size>=1 && size<=n)) {
+        printf("Input error\n");
+        return 0;
+    }
+
+    int min_sum = INT_MAX;
+    int* var = (int*)malloc(size*sizeof(int));
+    int* result_var = (int*)malloc(size*sizeof(int));
+
+    double start = omp_get_wtime();
+
+    _variate(matrix, n, var, size, 1, 8, 0, result_var, &min_sum, logfile);
+
+    double finish = omp_get_wtime();
+
+    printf("\n---------------Output----------------\n");
+    printf("indexes:\n");
+    print_var(result_var, size);
+    printf("matrix:\n");
+    print_triangle(matrix, n, result_var, size);
+    printf("min_sum: %d\n", min_sum);
+    printf("Time: %lf\n", finish - start);
+
+    printf("\nIntermediate results is saved in the log file.\n", count);
     
-    // return 0;
+    for (int i = 0;i<n;i++) {
+        free(matrix);
+    }
+    free(matrix);
+    free(var);
+    free(result_var);
+
+    fclose(logfile);
+    
+    
+    return 0;
 }
 
 void print_var(int* var, int size) {
+    printf("[ ");
     for (int i = 0; i < size; i++) {
         printf("%d ", var[i]);
     }
+    printf("]");
     printf("\n");
 }
 
@@ -167,8 +134,6 @@ void print_triangle(int** matrix, int n, int* var, int size) {
 
 int get_sum(int** matrix, int n, int* var, int size) {
 
-    print_triangle(matrix, n, var, size);
-
     int sum = 0;
 
     int row_index = 0, col_index = 0;
@@ -181,25 +146,46 @@ int get_sum(int** matrix, int n, int* var, int size) {
 
 }
 
-void _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum) {
+void _variate(int** matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile) {
 
     for (int i = min; i <= max - size + 1; i++) {
         if (deep < size) {
             var[deep] = i;
-            _variate(matrix, n, var, size, i + 1, max + 1, deep + 1, result_var, min_sum);
+            _variate(matrix, n, var, size, i + 1, max + 1, deep + 1, result_var, min_sum, logfile);
 
         }
         else {
-            printf("indexes: ");
-            print_var(var, size);
+            
+            //print_var(var, size);
+            //printf("matrix:\n");
+            //print_triangle(matrix, n, var, size);
             int sum = get_sum(matrix, n, var, size);
-            printf("sum: %d\n", sum);
+           // printf("sum: %d\n", sum);
             if (sum < *min_sum) {
-                printf("Less!\n");
                 *min_sum = sum;
                 for (int j = 0; j < size; j++) result_var[j] = var[j];
             }
+            save_log(logfile, matrix, n, var, size, sum, *min_sum);
             break;
         }
+    }
+}
+
+void save_log(FILE* logfile, int** matrix, int n, int* var, int size, int sum, int min_sum) {
+    if (logfile != NULL) {
+        fprintf(logfile, "[ ");
+        for (int i = 0; i < size; i++) {
+            fprintf(logfile, "%d ", var[i]);
+        }
+        fprintf(logfile, "]\nsubmatrix:");
+        int row_index = 0, col_index = 0;
+        for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
+            for (int j = var[col_index]; j <= i && col_index < size; col_index++, j = var[col_index]) {
+                fprintf(logfile, "%d ", matrix[i - 1][j - 1]);
+            }
+            fprintf(logfile, "\n");
+        }
+        fprintf(logfile, "sum: %d\n", sum);
+        fprintf(logfile, "min_sum: %d\n", min_sum);
     }
 }
