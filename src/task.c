@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
 
     double start = omp_get_wtime();
 
-    _variate(matrix, n, var, size, 1, 8, 0, result_var, &min_sum, logfile);
+    _variate(matrix, n, var, size, 1, n, 0, result_var, &min_sum, logfile);
 
     double finish = omp_get_wtime();
 
