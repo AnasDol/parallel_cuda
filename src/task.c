@@ -129,7 +129,6 @@ void print_triangle(int** matrix, int n, int* var, int size) {
         }
         printf("\n");
     }
-
 }
 
 int get_sum(int** matrix, int n, int* var, int size) {
@@ -156,11 +155,7 @@ void _variate(int** matrix, int n, int* var, int size, int min, int max, int dee
         }
         else {
             
-            //print_var(var, size);
-            //printf("matrix:\n");
-            //print_triangle(matrix, n, var, size);
             int sum = get_sum(matrix, n, var, size);
-           // printf("sum: %d\n", sum);
             if (sum < *min_sum) {
                 *min_sum = sum;
                 for (int j = 0; j < size; j++) result_var[j] = var[j];
