@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <omp.h>
 
-void print_var(int* var, int size);
+__device__ void print_var(int* var, int size);
 __device__ void print_matrix(int* matrix, int n);
-void print_triangle(int* matrix, int n, int* var, int size);
+ __device__ void print_triangle(int* matrix, int n, int* var, int size);
 
  __device__ int get_sum(int* matrix, int n, int* var, int size);
 
@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             //fread(&matrix[i * n + j], sizeof(int), 1, file);
-            matrix[i * n + j] = rand() % 30 + 1;
+            matrix[i * n + j] = rand() % 10 + 1;
         }
     }
 
@@ -31,7 +31,6 @@ int main(int argc, char* argv[]) {
 
     int size = 3;
 
-    int min_sum = INT_MAX;
     int* var = (int*)malloc(size*sizeof(int));
     int* result_var = (int*)malloc(size*sizeof(int));
     int* device_var;
@@ -43,7 +42,38 @@ int main(int argc, char* argv[]) {
     cudaMalloc((void**)&device_matrix, sizeof(int) * n * n);
     cudaMemcpy(device_matrix, matrix, sizeof(int) * n * n, cudaMemcpyHostToDevice);
 
-    variate<<<1,1>>>(device_matrix, n, device_var, size, 1, n, 0, device_result_var, &min_sum, NULL);
+    int min_sum = INT_MAX;
+    int* device_min_sum;
+    cudaMalloc((void**)&device_min_sum, sizeof(int));
+    cudaMemcpy(device_min_sum, &min_sum, sizeof(int), cudaMemcpyHostToDevice);
+
+    variate<<<1,1>>>(device_matrix, n, device_var, size, 1, n, 0, device_result_var, device_min_sum, NULL);
+
+    //printf("host min_sum: %d\n", min_sum);
+
+    cudaMemcpy(result_var, device_result_var, sizeof(int) * size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&min_sum, device_min_sum, sizeof(int), cudaMemcpyDeviceToHost);
+
+    //cudaDeviceSynchronize();
+
+    printf("\n---------------Output----------------\n");
+    printf("indexes:\n");
+    printf("[ ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", result_var[i]);
+    }
+    printf("]");
+    printf("\n");
+    printf("submatrix:\n");
+    int row_index = 0, col_index = 0;
+    for (int i = result_var[row_index]; row_index < size; col_index = 0, row_index++, i = result_var[row_index]) {
+        for (int j = result_var[col_index]; j <= i && col_index < size; col_index++, j = result_var[col_index]) {
+            printf("%d ", matrix[(i - 1) * n + (j - 1)]);
+        }
+        printf("\n");
+    }
+    printf("min_sum: %d\n", min_sum);
+    //printf("Time: %lf\n", finish - start);
     
     free(matrix);
     free(var);
@@ -56,7 +86,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void print_var(int* var, int size) {
+__device__ void print_var(int* var, int size) {
     printf("[ ");
     for (int i = 0; i < size; i++) {
         printf("%d ", var[i]);
@@ -75,7 +105,7 @@ __device__ void print_matrix(int* matrix, int n) {
 
 }
 
-void print_triangle(int* matrix, int n, int* var, int size) {
+ __device__ void print_triangle(int* matrix, int n, int* var, int size) {
 
     int row_index = 0, col_index = 0;
     for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
@@ -129,12 +159,16 @@ __device__ void _variate(int* matrix, int n, int* var, int size, int min, int ma
         }
         else {
             
+            print_var(var, size);
+            printf("matrix:\n");
+            print_triangle(matrix, n, var, size);
             int sum = get_sum(matrix, n, var, size);
+            printf("sum: %d\n", sum);
             if (sum < *min_sum) {
                 *min_sum = sum;
                 for (int j = 0; j < size; j++) result_var[j] = var[j];
             }
-            save_log(logfile, matrix, n, var, size, sum, *min_sum);
+            // save_log(logfile, matrix, n, var, size, sum, *min_sum);
             break;
         }
     }
@@ -142,7 +176,10 @@ __device__ void _variate(int* matrix, int n, int* var, int size, int min, int ma
 
 __global__ void variate(int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile) {
 
-    //_variate(matrix, n, var, size, min, max, deep, result_var, min_sum, logfile);
+    //printf("device min_sum: %d\n", *min_sum);
     print_matrix(matrix, n);
+    _variate(matrix, n, var, size, min, max, deep, result_var, min_sum, logfile);
+    printf("device result_var: ");
+    print_var(result_var, size);
 }
 
