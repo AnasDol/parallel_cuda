@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
     printf("matrix:\n");
     print_triangle(matrix, n, result_var, size);
     printf("min_sum: %d\n", min_sum);
-    printf("Time: %lf\n", finish - start);
+    printf("Time, sec: %lf\n", finish - start);
 
     printf("\nIntermediate results is saved in the log file.\n", count);
     

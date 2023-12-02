@@ -6,7 +6,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define MAX_COUNT 10
+#define MAX_COUNT 100
 
 void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
                 int* device_matrix, int* device_var, int* device_result_var, int* device_min_sum, int* device_array,
@@ -87,11 +87,23 @@ int main(int argc, char* argv[]) {
     
     int comb_count = 0; // счетчик числа сформированных комбинаций
 
+    // Создание событий для замера времени
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Зафиксировать начальное время
+    cudaEventRecord(start);
+
     _variate(matrix_rows_cols, 
                 temp_var, result_var, var_size, &min_sum, array, 
                 device_matrix, device_var, device_result_var, device_min_sum, device_array, 
                 1, matrix_rows_cols, 0, 
                 &comb_count);
+
+    // Зафиксировать конечное время
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
 
     // копируем результаты на хост
     cudaMemcpy(result_var, device_result_var, sizeof(int) * var_size, cudaMemcpyDeviceToHost);
@@ -104,8 +116,14 @@ int main(int argc, char* argv[]) {
     
     printf("submatrix:\n");
     print_triangle(matrix, matrix_rows_cols, result_var, var_size);
+    printf("\n");
 
     printf("min_sum: %d\n", min_sum);
+
+    // Вычислить и вывести время выполнения
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Time, sec: %f\n", milliseconds / 1000);
 
 
     free(matrix);
@@ -117,6 +135,10 @@ int main(int argc, char* argv[]) {
     cudaFree(device_var);
     cudaFree(device_result_var);
     cudaFree(device_array);
+
+    // Освобождение событий
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     
     return 0;
 }
