@@ -99,8 +99,12 @@ int main(int argc, char* argv[]) {
     
     int comb_count = 0; // счетчик числа сформированных комбинаций
 
-    _variate(logfile, matrix_rows_cols, temp_var, result_var, var_size, &min_sum, array, device_matrix, device_var, device_result_var, device_min_sum, device_array, 1, matrix_rows_cols, 0, &comb_count);
-    //_variate(&comb_count, matrix, n, temp_var, var_size, 1, n, 0, result_var, &min_sum, NULL, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
+    _variate(logfile, 
+                matrix_rows_cols, 
+                temp_var, result_var, var_size, &min_sum, array, 
+                device_matrix, device_var, device_result_var, device_min_sum, device_array, 
+                1, matrix_rows_cols, 0, 
+                &comb_count);
 
     // копируем результаты на хост
     cudaMemcpy(result_var, device_result_var, sizeof(int) * var_size, cudaMemcpyDeviceToHost);
@@ -128,106 +132,6 @@ int main(int argc, char* argv[]) {
     cudaFree(device_array);
     
     return 0;
-}
-
-void print_var(int* temp_var, int var_size) {
-    printf("[ ");
-    for (int i = 0; i < var_size; i++) {
-        printf("%d ", temp_var[i]);
-    }
-    printf("]");
-    printf("\n");
-}
-
-void print_matrix(int* matrix, int n) {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            printf("%d ", matrix[i * n + j]);
-        }
-        printf("\n");
-    }
-
-}
-
-
-void print_triangle(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
-
-    int row_index = 0, col_index = 0;
-    for (int i = temp_var[row_index]; row_index < var_size; col_index = 0, row_index++, i = temp_var[row_index]) {
-        for (int j = temp_var[col_index]; j <= i && col_index < var_size; col_index++, j = temp_var[col_index]) {
-            printf("%d ", matrix[(i - 1) * matrix_rows_cols + (j - 1)]);
-        }
-        printf("\n");
-    }
-}
-
- __device__ int get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
-
-    int sum = 0;
-
-    int row_index = 0, col_index = 0;
-    for (int i = temp_var[row_index]; row_index < var_size; col_index = 0, row_index++, i = temp_var[row_index]) {
-        for (int j = temp_var[col_index]; j <= i && col_index < var_size; col_index++, j = temp_var[col_index]) {
-            sum += matrix[(i - 1) * matrix_rows_cols + (j - 1)];
-        }
-    }
-    return sum;
-
-}
-
- int host_get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
-
-    int sum = 0;
-
-    int row_index = 0, col_index = 0;
-    for (int i = temp_var[row_index]; row_index < var_size; col_index = 0, row_index++, i = temp_var[row_index]) {
-        for (int j = temp_var[col_index]; j <= i && col_index < var_size; col_index++, j = temp_var[col_index]) {
-            sum += matrix[(i - 1) * matrix_rows_cols + (j - 1)];
-        }
-    }
-    return sum;
-
-}
-
-void print_array(int* array, int rows, int cols) {
-    for (int i = 0;i<rows;i++) {
-        for (int j = 0;j<cols;j++) {
-            printf("%d ", array[i * cols + j]);
-        }
-        printf("\n");
-    }
-}
-
-__global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_size, int* min_sum, int* result_var) {
-
-    int threadId = blockIdx.x * blockDim.x + threadIdx.x; // id текущего потока
-    int N_threads = gridDim.x * blockDim.x; // всего потоков
-
-    int array_index = threadId; // соответствующий id индекс
-
-    // каждый поток обрабатывает несколько индексов, если это возможно
-    while (array_index < MAX_COUNT) {
-
-        if(array[array_index * var_size] == 0) break; // 0 - недопустимый номер строки
-
-        int* temp_var = (int*) malloc (sizeof(int) * var_size);
-        for (int i = 0 ; i < var_size; i++) {
-            temp_var[i] = array[array_index * var_size + i]; 
-        }
-
-        int sum = get_sum(matrix, matrix_rows_cols, temp_var, var_size); // рассчитываем сумму элементов разреженной треугльной матрицы
-        if (sum < *min_sum) {
-            *min_sum = sum;
-            for (int j = 0; j < var_size; j++) result_var[j] = temp_var[j];
-        }
-
-        printf("Process with id=%d computes array[%d]:\n  temp_var = %d %d %d\n  sum = %d\n", threadId, array_index, array[array_index * var_size + 0], array[array_index * var_size + 1],array[array_index * var_size + 2], sum);
-
-        free(temp_var);
-
-        array_index += N_threads; // следующий индекс
-
-    }
 }
 
 void _variate(FILE* logfile,
@@ -269,7 +173,7 @@ void _variate(FILE* logfile,
 
                 compute<<<3,10>>>(device_matrix, matrix_rows_cols, device_array, var_size, device_min_sum, device_result_var);
 
-                // занулием массив
+                // зануляем массив
                 for (int j = 0; j < MAX_COUNT; j++) {
                     for (int k = 0 ;k < var_size; k++) {
                         array[j*var_size + k] = 0;
@@ -298,6 +202,78 @@ void _variate(FILE* logfile,
 
 }
 
+__global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_size, int* min_sum, int* result_var) {
+
+    int threadId = blockIdx.x * blockDim.x + threadIdx.x; // id текущего потока
+    int N_threads = gridDim.x * blockDim.x; // всего потоков
+
+    int array_index = threadId; // соответствующий id индекс
+
+    // каждый поток обрабатывает несколько индексов, если это возможно
+    while (array_index < MAX_COUNT) {
+
+        if(array[array_index * var_size] == 0) break; // 0 - недопустимый номер строки
+
+        int* temp_var = (int*) malloc (sizeof(int) * var_size);
+        for (int i = 0 ; i < var_size; i++) {
+            temp_var[i] = array[array_index * var_size + i]; 
+        }
+
+        int sum = get_sum(matrix, matrix_rows_cols, temp_var, var_size); // рассчитываем сумму элементов разреженной треугльной матрицы
+        if (sum < *min_sum) {
+            *min_sum = sum;
+            for (int j = 0; j < var_size; j++) result_var[j] = temp_var[j];
+        }
+
+        printf("Process with id=%d computes array[%d]:\n  temp_var = %d %d %d\n  sum = %d\n", threadId, array_index, array[array_index * var_size + 0], array[array_index * var_size + 1],array[array_index * var_size + 2], sum);
+
+        free(temp_var);
+
+        array_index += N_threads; // следующий индекс
+
+    }
+}
+
+__device__ int get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
+
+    int sum = 0;
+
+    int row_index = 0, col_index = 0;
+    for (int i = temp_var[row_index]; row_index < var_size; col_index = 0, row_index++, i = temp_var[row_index]) {
+        for (int j = temp_var[col_index]; j <= i && col_index < var_size; col_index++, j = temp_var[col_index]) {
+            sum += matrix[(i - 1) * matrix_rows_cols + (j - 1)];
+        }
+    }
+    return sum;
+
+}
+
+void print_var(int* temp_var, int var_size) {
+    printf("[ ");
+    for (int i = 0; i < var_size; i++) {
+        printf("%d ", temp_var[i]);
+    }
+    printf("]");
+    printf("\n");
+}
+
+void print_triangle(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
+
+    int row_index = 0, col_index = 0;
+    for (int i = temp_var[row_index]; row_index < var_size; col_index = 0, row_index++, i = temp_var[row_index]) {
+        for (int j = temp_var[col_index]; j <= i && col_index < var_size; col_index++, j = temp_var[col_index]) {
+            printf("%d ", matrix[(i - 1) * matrix_rows_cols + (j - 1)]);
+        }
+        printf("\n");
+    }
+}
 
 
-
+void print_array(int* array, int rows, int cols) {
+    for (int i = 0;i<rows;i++) {
+        for (int j = 0;j<cols;j++) {
+            printf("%d ", array[i * cols + j]);
+        }
+        printf("\n");
+    }
+}
