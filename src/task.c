@@ -2,6 +2,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <omp.h>
 
 void print_var(int* var, int size);
@@ -79,17 +80,22 @@ int main(int argc, char* argv[]) {
     double finish = omp_get_wtime();
 
     printf("\n---------------Output----------------\n");
+
     printf("indexes:\n");
     print_var(result_var, size);
-    printf("matrix:\n");
+    printf("\n");
+
+    printf("submatrix:\n");
     print_triangle(matrix, n, result_var, size);
+    printf("\n");
+
     printf("min_sum: %d\n", min_sum);
     printf("Time, sec: %lf\n", finish - start);
 
     printf("\nIntermediate results is saved in the log file.\n", count);
     
     for (int i = 0;i<n;i++) {
-        free(matrix);
+        free(matrix[i]);
     }
     free(matrix);
     free(var);
