@@ -8,55 +8,86 @@
 
 #define MAX_COUNT 10
 
-__device__ void print_var(int* var, int size);
-__device__ void print_matrix(int* matrix, int n);
- __device__ void print_triangle(int* matrix, int n, int* var, int size);
+void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, 
+                    int* result_var, int* min_sum, FILE* logfile, 
+                    int* device_var, int* device_result_var, int* device_matrix, 
+                    int* device_min_sum, int* array, int* device_array);
 
  __device__ int get_sum(int* matrix, int n, int* var, int size);
 
  __device__ void save_log(FILE* logfile, int** matrix, int n, int* var, int size, int sum, int min_sum);
-__device__ void _variate(int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile);
 
-__device__ void new_variate(int* matrix, int n, int* var, int size, int min, int max, int true_max, int deep, int* result_var, int* min_sum, FILE* logfile, int* num);
- __global__ void variate(int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile);
 __global__ void startCompution(int* matrix, int n, int* array, int size, int* min_sum, int* result_var);
-void host_print_var(int* var, int size);
-void host_print_matrix(int* matrix, int n);
-void host_print_triangle(int* matrix, int n, int* var, int size);
 
-int host_get_sum(int* matrix, int n, int* var, int size);
-//void new_variate(int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile);
-void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile, int* device_var, int* device_result_var, int* device_matrix, int* device_min_sum, int* array, int* device_array);
+void host_print_var(int* var, int size);
+void host_print_triangle(int* matrix, int n, int* var, int size);
 
 void print_array(int* array, int rows, int cols);
 
 int main(int argc, char* argv[]) {
 
-    int n = 8;
+    if (argc < 3) {
+        printf("Enter dataset and log filename as command prompt arguments\n");
+        return 0;
+    }
+
+    char filename[255];
+    strncpy(filename, argv[1], 255);
+
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        printf("Dataset file not found\n");
+        return 0;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long count = ftell(file) / sizeof(int);
+    fseek(file, 0, SEEK_SET);
+
+    printf("count: %d\n", count);
+
+    int n = sqrt(count);
 
     int* matrix = (int*)malloc(n * n * sizeof(int));
 
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            //fread(&matrix[i * n + j], sizeof(int), 1, file);
-            matrix[i * n + j] = rand() % 10 + 1;
+            fread(&matrix[i * n + j], sizeof(int), 1, file);
         }
     }
 
-    if (n <= 20) host_print_matrix(matrix, n);
+    fclose(file);
 
-    int size = 3;
+    char log[255];
+    strncpy(log, argv[2], 255);
 
-    int* var = (int*)malloc(size*sizeof(int));
-    int* result_var = (int*)malloc(size*sizeof(int));
-    int* device_var;
-    cudaMalloc((void**)&device_var, sizeof(int) * size);
-    int* device_result_var;
-    cudaMalloc((void**)&device_result_var, sizeof(int) * size);
+    FILE* logfile = fopen(log, "w+");
+    if (!logfile) {
+        printf("Log file not found\n");
+        return 0;
+    }
+
+    if (n <= 20) print_array(matrix, n, n);
+
+    printf("Matrix size (1-%d): ", n);
+    int size;
+    if (!(scanf("%d", &size)==1 && size>=1 && size<=n)) {
+        printf("Input error\n");
+        return 0;
+    }
 
     int* device_matrix;
     cudaMalloc((void**)&device_matrix, sizeof(int) * n * n);
     cudaMemcpy(device_matrix, matrix, sizeof(int) * n * n, cudaMemcpyHostToDevice);
+
+    // 
+    int* var = (int*)malloc(size*sizeof(int));
+    int* device_var;
+    cudaMalloc((void**)&device_var, sizeof(int) * size);
+
+    int* result_var = (int*)malloc(size*sizeof(int));
+    int* device_result_var;
+    cudaMalloc((void**)&device_result_var, sizeof(int) * size);
 
     int min_sum = INT_MAX;
     int* device_min_sum;
@@ -64,17 +95,13 @@ int main(int argc, char* argv[]) {
     cudaMemcpy(device_min_sum, &min_sum, sizeof(int), cudaMemcpyHostToDevice);
 
     
-
-
-
-
-    int count = 0;
+    int comb_count = 0; // счетчик числа сформированных комбинаций
 
     int* array = (int*)malloc(sizeof(int)*MAX_COUNT*size);
     int* device_array;
     cudaMalloc((void**)&device_array, sizeof(int)*MAX_COUNT*size);
 
-    new_variate(&count, matrix, n, var, size, 1, 8, 0, result_var, &min_sum, NULL, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
+    new_variate(&comb_count, matrix, n, var, size, 1, n, 0, result_var, &min_sum, NULL, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
 
 
 
@@ -117,15 +144,6 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-__device__ void print_var(int* var, int size) {
-    printf("[ ");
-    for (int i = 0; i < size; i++) {
-        printf("%d ", var[i]);
-    }
-    printf("]");
-    printf("\n");
-}
-
 void host_print_var(int* var, int size) {
     printf("[ ");
     for (int i = 0; i < size; i++) {
@@ -135,7 +153,7 @@ void host_print_var(int* var, int size) {
     printf("\n");
 }
 
-__device__ void print_matrix(int* matrix, int n) {
+void print_matrix(int* matrix, int n) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             printf("%d ", matrix[i * n + j]);
@@ -145,26 +163,6 @@ __device__ void print_matrix(int* matrix, int n) {
 
 }
 
-void host_print_matrix(int* matrix, int n) {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            printf("%d ", matrix[i * n + j]);
-        }
-        printf("\n");
-    }
-
-}
-
- __device__ void print_triangle(int* matrix, int n, int* var, int size) {
-
-    int row_index = 0, col_index = 0;
-    for (int i = var[row_index]; row_index < size; col_index = 0, row_index++, i = var[row_index]) {
-        for (int j = var[col_index]; j <= i && col_index < size; col_index++, j = var[col_index]) {
-            printf("%d ", matrix[(i - 1) * n + (j - 1)]);
-        }
-        printf("\n");
-    }
-}
 
 void host_print_triangle(int* matrix, int n, int* var, int size) {
 
