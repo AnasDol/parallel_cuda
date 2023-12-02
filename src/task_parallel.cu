@@ -6,7 +6,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define MAX_COUNT 100
+#define MAX_COUNT 10
 
 __device__ void print_var(int* var, int size);
 __device__ void print_matrix(int* matrix, int n);
@@ -78,7 +78,28 @@ int main(int argc, char* argv[]) {
 
 
 
+    cudaMemcpy(result_var, device_result_var, sizeof(int) * size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&min_sum, device_min_sum, sizeof(int), cudaMemcpyDeviceToHost);
 
+
+
+    printf("\n---------------Output----------------\n");
+    printf("indexes:\n");
+    printf("[ ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", result_var[i]);
+    }
+    printf("]");
+    printf("\n");
+    printf("submatrix:\n");
+    int row_index = 0, col_index = 0;
+    for (int i = result_var[row_index]; row_index < size; col_index = 0, row_index++, i = result_var[row_index]) {
+        for (int j = result_var[col_index]; j <= i && col_index < size; col_index++, j = result_var[col_index]) {
+            printf("%d ", matrix[(i - 1) * n + (j - 1)]);
+        }
+        printf("\n");
+    }
+    printf("min_sum: %d\n", min_sum);
 
 
 
@@ -201,9 +222,9 @@ __global__ void startCompution(int* matrix, int n, int* array, int size, int* mi
 
     int array_index = threadId;
 
-    if (threadId == 0) {
-        print_matrix(matrix, n);
-    }
+    // if (threadId == 0) {
+    //     print_matrix(matrix, n);
+    // }
 
 
     while (array_index < MAX_COUNT) {
