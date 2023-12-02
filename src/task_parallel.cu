@@ -6,7 +6,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define MAX_COUNT 1000
+#define MAX_COUNT 10000
 
 void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
                 int* device_matrix, int* device_var, int* device_result_var, int* device_min_sum, int* device_array,
@@ -179,7 +179,7 @@ void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size
                 // копируем массив комбинаций на девайс
                 cudaMemcpy(device_array, array, sizeof(int) * var_size * MAX_COUNT, cudaMemcpyHostToDevice); 
 
-                compute<<<3,10>>>(device_matrix, matrix_rows_cols, device_array, var_size, device_min_sum, device_result_var);
+                compute<<<50,256>>>(device_matrix, matrix_rows_cols, device_array, var_size, device_min_sum, device_result_var);
 
                 // зануляем массив
                 for (int j = 0; j < MAX_COUNT; j++) {
@@ -204,7 +204,7 @@ void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size
         // копируем массив комбинаций на девайс
         cudaMemcpy(device_array, array, sizeof(int) * var_size * MAX_COUNT, cudaMemcpyHostToDevice); 
 
-        compute<<<5,256>>>(device_matrix, matrix_rows_cols, device_array, var_size, device_min_sum, device_result_var);
+        compute<<<50,256>>>(device_matrix, matrix_rows_cols, device_array, var_size, device_min_sum, device_result_var);
 
     }
 
