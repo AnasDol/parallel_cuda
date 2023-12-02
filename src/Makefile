@@ -214,28 +214,52 @@ endif
 ################################################################################
 
 # Target rules
-all: build
+# all: build
 
-build: example
+# build: task_parallel
 
-check.deps:
-ifeq ($(SAMPLE_ENABLED),0)
-	@echo "Sample will be waived due to the above missing dependencies"
-else
-	@echo "Sample is ready - all dependencies have been met"
-endif
+# check.deps:
+# ifeq ($(SAMPLE_ENABLED),0)
+# 	@echo "Sample will be waived due to the above missing dependencies"
+# else
+# 	@echo "Sample is ready - all dependencies have been met"
+# endif
 
-example.o:example.cu
+# task_parallel.o:task_parallel.cu
+# 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+
+# task_parallel: task_parallel.o
+# 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
+# 	rm task_parallel.o
+
+# run: build
+# 	$(EXEC) ./task_parallel
+
+# clean:
+# 	rm -f task_parallel task_parallel.o
+
+# clobber: clean
+
+OUT_DIR := ../build
+
+all: $(OUT_DIR)/build
+
+$(OUT_DIR)/build: $(OUT_DIR)/task_parallel
+
+$(OUT_DIR)/check.deps:
+	@echo "Sample dependencies check..."
+
+$(OUT_DIR)/task_parallel.o: task_parallel.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-example: example.o
+$(OUT_DIR)/task_parallel: $(OUT_DIR)/task_parallel.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
-	rm example.o
+	rm $<
 
-run: build
-	$(EXEC) ./example
+run: $(OUT_DIR)/build
+	$(EXEC) ./$(OUT_DIR)/task_parallel
 
 clean:
-	rm -f example example.o
+	rm -f $(OUT_DIR)/task_parallel $(OUT_DIR)/task_parallel.o
 
 clobber: clean
