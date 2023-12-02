@@ -26,8 +26,9 @@ void host_print_triangle(int* matrix, int n, int* var, int size);
 
 int host_get_sum(int* matrix, int n, int* var, int size);
 //void new_variate(int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile);
-void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile, int* device_var, int* device_result_var, int* device_matrix, int* device_min_sum);
+void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile, int* device_var, int* device_result_var, int* device_matrix, int* device_min_sum, int* array, int* device_array);
 
+void print_array(int* array, int rows, int cols);
 
 int main(int argc, char* argv[]) {
 
@@ -69,7 +70,11 @@ int main(int argc, char* argv[]) {
 
     int count = 0;
 
-    new_variate(&count, matrix, n, var, size, 1, 8, 0, result_var, &min_sum, NULL, device_var, device_result_var, device_matrix, device_min_sum);
+    int* array = (int*)malloc(sizeof(int)*MAX_COUNT*size);
+    int* device_array;
+    cudaMalloc((void**)&device_array, sizeof(int)*MAX_COUNT*size);
+
+    new_variate(&count, matrix, n, var, size, 1, 8, 0, result_var, &min_sum, NULL, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
 
 
 
@@ -80,31 +85,6 @@ int main(int argc, char* argv[]) {
 
 
 
-
-    // cudaMemcpy(result_var, device_result_var, sizeof(int) * size, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(&min_sum, device_min_sum, sizeof(int), cudaMemcpyDeviceToHost);
-
-    //cudaDeviceSynchronize();
-
-    // printf("\n---------------Output----------------\n");
-    // printf("indexes:\n");
-    // printf("[ ");
-    // for (int i = 0; i < size; i++) {
-    //     printf("%d ", result_var[i]);
-    // }
-    // printf("]");
-    // printf("\n");
-    // printf("submatrix:\n");
-    // int row_index = 0, col_index = 0;
-    // for (int i = result_var[row_index]; row_index < size; col_index = 0, row_index++, i = result_var[row_index]) {
-    //     for (int j = result_var[col_index]; j <= i && col_index < size; col_index++, j = result_var[col_index]) {
-    //         printf("%d ", matrix[(i - 1) * n + (j - 1)]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("min_sum: %d\n", min_sum);
-    //printf("Time: %lf\n", finish - start);
-    
     free(matrix);
     free(var);
     free(result_var);
@@ -204,52 +184,93 @@ void host_print_triangle(int* matrix, int n, int* var, int size) {
 
 }
 
-__global__ void startCompution(int* matrix, int n, int* var, int size, int* min_sum) {
+void print_array(int* array, int rows, int cols) {
+    for (int i = 0;i<rows;i++) {
+        for (int j = 0;j<cols;j++) {
+            printf("%d ", array[i * cols + j]);
+        }
+        printf("\n");
+    }
+}
 
-    int threadId = threadIdx.x;  // Идентификатор потока внутри блока
-    int blockId = blockIdx.x;    // Идентификатор блока внутри сетки
-    printf("Thread ID: %d, Block ID: %d\n", threadId, blockId);
+__global__ void startCompution(int* matrix, int n, int* array, int size, int* min_sum) {
+
+    int threadId = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int N_threads = gridDim.x * blockDim.x;
+
+    int array_index = threadId;
+
+
+    while (array_index < MAX_COUNT) {
+        
+        printf("Process with id=%d computes array[%d]: %d %d %d\n", threadId, array_index, array[array_index * size + 0], array[array_index * size + 1],array[array_index * size + 2]);
+        array_index += N_threads;
+
+    }
+
+
 
 }
 
-void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile, int* device_var, int* device_result_var, int* device_matrix, int* device_min_sum) {
+void new_variate(int* count, int* matrix, int n, int* var, int size, int min, int max, int deep, int* result_var, int* min_sum, FILE* logfile, int* device_var, int* device_result_var, int* device_matrix, int* device_min_sum, int* array, int* device_array) {
 
     for (int i = min; i <= max - size + 1; i++) {
         if (deep < size) {
             var[deep] = i;
-            new_variate(count, matrix, n, var, size, i + 1, max + 1, deep + 1, result_var, min_sum, logfile, device_var, device_result_var, device_matrix, device_min_sum);
+            new_variate(count, matrix, n, var, size, i + 1, max + 1, deep + 1, result_var, min_sum, logfile, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
         }
         else {
+
+            // сохраняем var в array
+            for (int j = 0; j < size; j++) {
+                array[*count * size + j] = var[j];
+            }
 
             (*count)++;
 
             if (*count >= MAX_COUNT) {
+
+
+                printf("----------------\n");
+
+                print_array(array, MAX_COUNT, size);
+
                 
                 cudaDeviceSynchronize();
-                cudaMemcpy(var, device_var, sizeof(int) * size, cudaMemcpyHostToDevice);
+                cudaMemcpy(device_array, array, sizeof(int) * size * MAX_COUNT, cudaMemcpyHostToDevice);
+                startCompution<<<3,10>>>(matrix, n, device_array, size, device_min_sum);
 
-                startCompution<<<1,1>>>(matrix, n, device_var, size, device_min_sum);
+                
+
                 *count = 0;
 
             }
 
-            host_print_var(var, size);
+
+            //host_print_var(var, size);
             
-            int sum = host_get_sum(matrix, n, var, size);
-            if (sum < *min_sum) {
-                *min_sum = sum;
-                for (int j = 0; j < size; j++) result_var[j] = var[j];
-            }
+            // int sum = host_get_sum(matrix, n, var, size);
+            // if (sum < *min_sum) {
+            //     *min_sum = sum;
+            //     for (int j = 0; j < size; j++) result_var[j] = var[j];
+            // }
+
+            
 
             break;
         }
     }
 
     if (deep == 0) {
-        cudaDeviceSynchronize();
-        cudaMemcpy(var, device_var, sizeof(int) * size, cudaMemcpyHostToDevice);
+        printf("----------------\n");
 
-        startCompution<<<1,1>>>(matrix, n, device_var, size, device_min_sum);
+        print_array(array, MAX_COUNT, size);
+
+        
+        cudaDeviceSynchronize();
+        cudaMemcpy(device_array, array, sizeof(int) * size * MAX_COUNT, cudaMemcpyHostToDevice);
+        startCompution<<<3,10>>>(matrix, n, device_array, size, device_min_sum);
         *count = 0;
     }
 
