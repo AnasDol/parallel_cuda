@@ -8,8 +8,7 @@
 
 #define MAX_COUNT 10
 
-void _variate(FILE* logfile,
-                int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
+void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
                 int* device_matrix, int* device_var, int* device_result_var, int* device_min_sum, int* device_array,
                 int min, int max, int deep,
                 int* count);
@@ -18,16 +17,14 @@ __global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_s
 
 __device__ int get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var_size);
 
-__device__ void save_log(FILE* logfile, int** matrix, int matrix_rows_cols, int* temp_var, int var_size, int sum, int min_sum);
-
 void print_var(int* temp_var, int var_size);
 void print_triangle(int* matrix, int matrix_rows_cols, int* temp_var, int var_size);
 void print_array(int* array, int rows, int cols);
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 3) {
-        printf("Enter dataset and log filename as command prompt arguments\n");
+    if (argc < 2) {
+        printf("Enter dataset filename as command prompt argument\n");
         return 0;
     }
 
@@ -57,15 +54,6 @@ int main(int argc, char* argv[]) {
     }
 
     fclose(file);
-
-    char log[255];
-    strncpy(log, argv[2], 255);
-
-    FILE* logfile = fopen(log, "w+");
-    if (!logfile) {
-        printf("Log file not found\n");
-        return 0;
-    }
 
     if (matrix_rows_cols <= 20) print_array(matrix, matrix_rows_cols, matrix_rows_cols);
 
@@ -99,8 +87,7 @@ int main(int argc, char* argv[]) {
     
     int comb_count = 0; // счетчик числа сформированных комбинаций
 
-    _variate(logfile, 
-                matrix_rows_cols, 
+    _variate(matrix_rows_cols, 
                 temp_var, result_var, var_size, &min_sum, array, 
                 device_matrix, device_var, device_result_var, device_min_sum, device_array, 
                 1, matrix_rows_cols, 0, 
@@ -134,8 +121,8 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void _variate(FILE* logfile,
-                int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
+
+void _variate(int matrix_rows_cols, int* temp_var, int* result_var, int var_size, int* min_sum, int* array,
                 int* device_matrix, int* device_var, int* device_result_var, int* device_min_sum, int* device_array,
                 int min, int max, int deep,
                 int* count) {
@@ -148,8 +135,7 @@ void _variate(FILE* logfile,
             temp_var[deep] = i; // считаем очередное число
 
             // продолжаем рекурсию
-             _variate(logfile, matrix_rows_cols, temp_var, result_var, var_size, min_sum, array, device_matrix, device_var, device_result_var, device_min_sum, device_array, i + 1, max + 1, deep + 1, count);
-            //_variate(count, matrix, n, temp_var, var_size, i + 1, max + 1, deep + 1, result_var, min_sum, logfile, device_var, device_result_var, device_matrix, device_min_sum, array, device_array);
+            _variate(matrix_rows_cols, temp_var, result_var, var_size, min_sum, array, device_matrix, device_var, device_result_var, device_min_sum, device_array, i + 1, max + 1, deep + 1, count);
         
         }
 
@@ -202,6 +188,7 @@ void _variate(FILE* logfile,
 
 }
 
+
 __global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_size, int* min_sum, int* result_var) {
 
     int threadId = blockIdx.x * blockDim.x + threadIdx.x; // id текущего потока
@@ -225,7 +212,7 @@ __global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_s
             for (int j = 0; j < var_size; j++) result_var[j] = temp_var[j];
         }
 
-        printf("Process with id=%d computes array[%d]:\n  temp_var = %d %d %d\n  sum = %d\n", threadId, array_index, array[array_index * var_size + 0], array[array_index * var_size + 1],array[array_index * var_size + 2], sum);
+        //printf("Process with id=%d computes array[%d]:\n  temp_var = %d %d %d\n  sum = %d\n", threadId, array_index, array[array_index * var_size + 0], array[array_index * var_size + 1],array[array_index * var_size + 2], sum);
 
         free(temp_var);
 
@@ -233,6 +220,7 @@ __global__ void compute(int* matrix, int matrix_rows_cols, int* array, int var_s
 
     }
 }
+
 
 __device__ int get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var_size) {
 
@@ -247,6 +235,7 @@ __device__ int get_sum(int* matrix, int matrix_rows_cols, int* temp_var, int var
     return sum;
 
 }
+
 
 void print_var(int* temp_var, int var_size) {
     printf("[ ");
@@ -267,7 +256,6 @@ void print_triangle(int* matrix, int matrix_rows_cols, int* temp_var, int var_si
         printf("\n");
     }
 }
-
 
 void print_array(int* array, int rows, int cols) {
     for (int i = 0;i<rows;i++) {
